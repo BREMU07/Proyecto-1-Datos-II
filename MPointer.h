@@ -2,138 +2,151 @@
 #define MPOINTER_H
 
 #include <iostream>
+#include <vector>
 #include <unordered_map>
-#include <memory>
-#include <mutex>
-#include <thread>
-#include <chrono>
-#include <atomic>
+#include <stdexcept>
+#include <queue>  // Cola para gestionar índices libres
 
-// Definición de la clase MPointerGC
+// Clase Gestora de Memoria
 class MPointerGC {
 private:
-    std::unordered_map<void*, int> referenceCounts;
-    std::mutex gcMutex;
-    std::atomic<bool> running;
-    std::thread gcThread;
+    std::vector<void*> memoryPool;  // "Memoria" simulada
+    std::unordered_map<int, int> referenceCounts;  // Recuento de referencias por índice
+    std::queue<int> freeIndices;  // Cola de índices libres
+    int currentIndex;  // Índice de la próxima memoria libre
 
-    // Constructor privado para el patrón Singleton
-    MPointerGC() : running(true), gcThread(&MPointerGC::collectGarbage, this) {}
-
-    // Función que realiza la recolección de basura
-    void collectGarbage() {
-        while (running) {
-            std::this_thread::sleep_for(std::chrono::seconds(10));
-            std::lock_guard<std::mutex> lock(gcMutex);
-            for (auto it = referenceCounts.begin(); it != referenceCounts.end();) {
-                if (it->second == 0) {
-                    free(it->first);
-                    it = referenceCounts.erase(it);
-                } else {
-                    ++it;
-                }
-            }
-        }
-    }
+    MPointerGC() : currentIndex(0) {}
 
 public:
-    // Función estática que retorna la única instancia de MPointerGC
+    // Método Singleton para obtener la instancia de MPointerGC
     static MPointerGC& getInstance() {
         static MPointerGC instance;
         return instance;
     }
 
-    // Prohíbe la copia y asignación de la instancia
-    MPointerGC(const MPointerGC&) = delete;
-    MPointerGC& operator=(const MPointerGC&) = delete;
+    // Método para asignar memoria para un nuevo objeto
+    int allocate(size_t size) {
+        void* newMem = malloc(size);  // Simulamos la asignación de memoria
+        if (!newMem) throw std::bad_alloc();
 
-    // Funciones para manejar las referencias de punteros
-    void addReference(void* ptr) {
-        std::lock_guard<std::mutex> lock(gcMutex);
-        referenceCounts[ptr]++;
+        int index;
+        if (!freeIndices.empty()) {
+            // Reutilizar un índice libre si existe
+            index = freeIndices.front();
+            freeIndices.pop();
+            memoryPool[index] = newMem;
+        } else {
+            // Crear un nuevo índice
+            index = currentIndex++;
+            memoryPool.push_back(newMem);
+        }
+
+        referenceCounts[index] = 1;  // Nueva referencia inicial
+        std::cout << "[MPointerGC] Memoria asignada en índice " << index << " de tamaño " << size << std::endl;
+        return index;  // Devolvemos el índice asignado
     }
 
-    void removeReference(void* ptr) {
-        std::lock_guard<std::mutex> lock(gcMutex);
-        if (--referenceCounts[ptr] == 0) {
-            free(ptr);
-            referenceCounts.erase(ptr);
+    // Método para liberar memoria
+    void deallocate(int index) {
+        if (referenceCounts[index] == 0) {
+            free(memoryPool[index]);  // Liberar la memoria
+            memoryPool[index] = nullptr;  // Marcar como liberada
+            freeIndices.push(index);  // Agregar a la lista de índices libres
+            std::cout << "[MPointerGC] Memoria liberada en índice " << index << std::endl;
+        } else {
+            std::cout << "[MPointerGC] Intento de liberar memoria con referencias en índice " << index << std::endl;
         }
     }
 
-    // Función para detener el recolector de basura
-    void stopGC() {
-        running = false;
-        if (gcThread.joinable()) {
-            gcThread.join();
-        }
+
+    // Método para aumentar las referencias
+    void addReference(int index) {
+        referenceCounts[index]++;
+        std::cout << "[MPointerGC] Referencia aumentada en índice " << index << " - Recuento: " << referenceCounts[index] << std::endl;
     }
 
-    // Destructor
-    ~MPointerGC() {
-        stopGC();
+    // Método para reducir las referencias y liberar si es necesario
+    void removeReference(int index) {
+        if (index == -1) return;  // No reducir referencias en punteros nulos
+        if (--referenceCounts[index] == 0) {
+            deallocate(index);  // Liberar memoria si el recuento llega a 0
+        } else if (referenceCounts[index] < 0) {
+            throw std::runtime_error("Error: Recuento de referencias negativo en índice " + std::to_string(index));
+        }
+        std::cout << "[MPointerGC] Referencia reducida en índice " << index << " - Recuento: " << referenceCounts[index] << std::endl;
+    }
+
+
+    // Método para obtener el puntero a la memoria en un índice dado
+    void* getMemory(int index) {
+        if (index >= memoryPool.size() || memoryPool[index] == nullptr) {
+            throw std::runtime_error("[MPointerGC] Acceso a memoria inválida en índice " + std::to_string(index));
+        }
+        std::cout << "[MPointerGC] memoryPool[" << index << "] = " << memoryPool[index] << std::endl;
+        return memoryPool[index];
     }
 };
 
-// Definición de la clase MPointer
+// Implementación de MPointer
 template<typename T>
 class MPointer {
 private:
-    std::shared_ptr<T> ptr;
+    int memIndex;  // Índice en el "pool de memoria" del GC
+    bool isNullPtr;  // Para simular un puntero nulo
 
-    // Constructor privado, sólo accesible a través de MPointer::New
-    MPointer(T* ptr) : ptr(ptr, [](T* p) { free(p); }) {
-        MPointerGC::getInstance().addReference(ptr);
+    MPointer(int index) : memIndex(index), isNullPtr(false) {
+        std::cout << "[MPointer] Creado MPointer en índice " << memIndex << std::endl;
     }
 
 public:
-    // Constructor por defecto
-    MPointer() : ptr(nullptr) {}
+    // Constructor por defecto (puntero nulo)
+    MPointer() : memIndex(-1), isNullPtr(true) {
+        std::cout << "[MPointer] Creado MPointer nulo" << std::endl;
+    }
 
     // Método para crear un nuevo MPointer
     static MPointer<T> New() {
-        T* rawPtr = (T*)malloc(sizeof(T));
-        if (!rawPtr) throw std::bad_alloc();  // Verifica que malloc no falle
-        return MPointer<T>(rawPtr);
+        int index = MPointerGC::getInstance().allocate(sizeof(T));  // Asignar memoria
+        return MPointer<T>(index);
     }
 
     // Destructor
     ~MPointer() {
-        reset();  // Llama a reset para liberar cualquier recurso
-    }
-
-    // Método para reiniciar el puntero
-    void reset() {
-        if (ptr) {
-            MPointerGC::getInstance().removeReference(ptr.get());
-            ptr.reset();
+        if (!isNullPtr) {
+            MPointerGC::getInstance().removeReference(memIndex);  // Remover referencia
         }
+        std::cout << "[MPointer] Destructor llamado para índice " << memIndex << std::endl;
     }
 
-    // Sobrecarga de operadores
+    // Operador de desreferenciación
     T& operator*() {
-        if (isNull()) throw std::runtime_error("Dereferencing null pointer");
-        return *ptr;
+        if (isNullPtr) {
+            throw std::runtime_error("Desreferenciando un puntero nulo");
+        }
+        std::cout << "[MPointer] Desreferenciando índice " << memIndex << std::endl;
+        return *(T*)(MPointerGC::getInstance().getMemory(memIndex));
     }
 
-    MPointer<T>& operator=(const T& value) {
-        *ptr = value;
-        return *this;
-    }
-
+    // Operador de asignación entre MPointers
     MPointer<T>& operator=(const MPointer<T>& other) {
         if (this != &other) {
-            reset();
-            ptr = other.ptr;
-            MPointerGC::getInstance().addReference(ptr.get());
+            if (!isNullPtr) {
+                MPointerGC::getInstance().removeReference(memIndex);  // Liberar referencia actual
+            }
+            memIndex = other.memIndex;
+            isNullPtr = other.isNullPtr;
+            if (!isNullPtr) {
+                MPointerGC::getInstance().addReference(memIndex);  // Aumentar referencia en el nuevo
+            }
         }
+        std::cout << "[MPointer] Asignado MPointer con índice " << memIndex << std::endl;
         return *this;
     }
 
-    // Verifica si el puntero interno es nullptr
+
+    // Verificar si es un puntero nulo
     bool isNull() const {
-        return !ptr;
+        return isNullPtr;
     }
 };
-
 #endif

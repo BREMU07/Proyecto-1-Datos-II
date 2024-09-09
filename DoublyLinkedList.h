@@ -7,14 +7,17 @@
 template<typename T>
 class Node {
 public:
-    MPointer<T> data;
-    MPointer<Node<T>> next;
-    MPointer<Node<T>> prev;
+    MPointer<T> data;  // El dato almacenado
+    MPointer<Node<T>> next;  // Puntero al siguiente nodo
+    MPointer<Node<T>> prev;  // Puntero al nodo anterior
 
-    Node(T val) : data(MPointer<T>::New()), next(MPointer<Node<T>>()), prev(MPointer<Node<T>>()) {
+    Node(T val) : data(MPointer<T>::New()), next(), prev() {
         *data = val;
+        std::cout << "[Node] Nodo creado con valor: " << val << std::endl;
     }
+        
 };
+
 
 template<typename T>
 class DoublyLinkedList {
@@ -23,7 +26,7 @@ private:
     MPointer<Node<T>> tail;
 
 public:
-    DoublyLinkedList() {}
+    DoublyLinkedList() : head(), tail() {}
 
     void append(T value) {
         MPointer<Node<T>> newNode = MPointer<Node<T>>::New();
@@ -54,15 +57,17 @@ public:
         do {
             swapped = false;
             MPointer<Node<T>> current = head;
-            while (!(*current).next.isNull()) {
-                if (*(*current).data > *(*(*current).next).data) {
-                    std::swap(*(*current).data, *(*(*current).next).data);
+            while (!current.isNull() && !(*current).next.isNull()) {
+                MPointer<Node<T>> nextNode = (*current).next;
+                if (*(*current).data > *(*nextNode).data) {
+                    std::swap(*(*current).data, *(*nextNode).data);
                     swapped = true;
                 }
-                current = (*current).next;
+                current = nextNode;
             }
         } while (swapped);
     }
 };
+
 
 #endif
