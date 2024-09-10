@@ -12,8 +12,7 @@ class MPointerGC {
 private:
     std::vector<void*> memoryPool;  // "Memoria" simulada
     std::unordered_map<int, int> referenceCounts;  // Recuento de referencias por índice
-    std::queue<int> freeIndices;  // Cola de índices libres
-    int currentIndex;  // Índice de la próxima memoria libre
+    int currentIndex;  // Índice único y en incremento constante
 
     MPointerGC() : currentIndex(0) {}
 
@@ -29,35 +28,24 @@ public:
         void* newMem = malloc(size);  // Simulamos la asignación de memoria
         if (!newMem) throw std::bad_alloc();
 
-        int index;
-        if (!freeIndices.empty()) {
-            // Reutilizar un índice libre si existe
-            index = freeIndices.front();
-            freeIndices.pop();
-            memoryPool[index] = newMem;
-        } else {
-            // Crear un nuevo índice
-            index = currentIndex++;
-            memoryPool.push_back(newMem);
-        }
-
+        int index = currentIndex++;  // Siempre incrementar el índice
+        memoryPool.push_back(newMem);  // Agregar la memoria al pool
         referenceCounts[index] = 1;  // Nueva referencia inicial
+
         std::cout << "[MPointerGC] Memoria asignada en índice " << index << " de tamaño " << size << std::endl;
         return index;  // Devolvemos el índice asignado
     }
 
-    // Método para liberar memoria
+    // Método para liberar memoria, pero sin reutilizar el índice
     void deallocate(int index) {
-        if (referenceCounts[index] == 0) {
+        if (referenceCounts[index] == 0 && memoryPool[index] != nullptr) {
             free(memoryPool[index]);  // Liberar la memoria
             memoryPool[index] = nullptr;  // Marcar como liberada
-            freeIndices.push(index);  // Agregar a la lista de índices libres
             std::cout << "[MPointerGC] Memoria liberada en índice " << index << std::endl;
         } else {
-            std::cout << "[MPointerGC] Intento de liberar memoria con referencias en índice " << index << std::endl;
+            std::cout << "[MPointerGC] Intento de liberar memoria en índice con referencias activas o memoria nula " << index << std::endl;
         }
     }
-
 
     // Método para aumentar las referencias
     void addReference(int index) {
@@ -65,29 +53,30 @@ public:
         std::cout << "[MPointerGC] Referencia aumentada en índice " << index << " - Recuento: " << referenceCounts[index] << std::endl;
     }
 
-    // Método para reducir las referencias y liberar si es necesario
+    // **Método manual** para reducir las referencias, llamado por el usuario
     void removeReference(int index) {
         if (index == -1) return;  // No reducir referencias en punteros nulos
-        if (--referenceCounts[index] == 0) {
-            deallocate(index);  // Liberar memoria si el recuento llega a 0
-        } else if (referenceCounts[index] < 0) {
-            throw std::runtime_error("Error: Recuento de referencias negativo en índice " + std::to_string(index));
-        }
-        std::cout << "[MPointerGC] Referencia reducida en índice " << index << " - Recuento: " << referenceCounts[index] << std::endl;
-    }
 
+        if (referenceCounts.find(index) != referenceCounts.end() && referenceCounts[index] > 0) {
+            referenceCounts[index]--;
+            if (referenceCounts[index] == 0) {
+                deallocate(index);  // Liberar memoria si el recuento llega a 0
+            }
+            std::cout << "[MPointerGC] Referencia reducida en índice " << index << " - Recuento: " << referenceCounts[index] << std::endl;
+        } else {
+            throw std::runtime_error("Error: Intento de reducir recuento de referencias inválido en índice " + std::to_string(index));
+        }
+    }
 
     // Método para obtener el puntero a la memoria en un índice dado
     void* getMemory(int index) {
         if (index >= memoryPool.size() || memoryPool[index] == nullptr) {
             throw std::runtime_error("[MPointerGC] Acceso a memoria inválida en índice " + std::to_string(index));
         }
-        std::cout << "[MPointerGC] memoryPool[" << index << "] = " << memoryPool[index] << std::endl;
+        std::cout << "[MPointerGC] Accediendo a memoria en índice " << index << std::endl;
         return memoryPool[index];
     }
 };
-
-// Implementación de MPointer
 template<typename T>
 class MPointer {
 private:
@@ -110,43 +99,36 @@ public:
         return MPointer<T>(index);
     }
 
-    // Destructor
+    // Destructor (no reduce referencias automáticamente)
     ~MPointer() {
-        if (!isNullPtr) {
-            MPointerGC::getInstance().removeReference(memIndex);  // Remover referencia
-        }
         std::cout << "[MPointer] Destructor llamado para índice " << memIndex << std::endl;
     }
 
     // Operador de desreferenciación
     T& operator*() {
-        if (isNullPtr) {
-            throw std::runtime_error("Desreferenciando un puntero nulo");
-        }
+        if (isNullPtr) throw std::runtime_error("Dereferencing null pointer");
         std::cout << "[MPointer] Desreferenciando índice " << memIndex << std::endl;
-        return *(T*)(MPointerGC::getInstance().getMemory(memIndex));
+        return *(T*)(MPointerGC::getInstance().getMemory(memIndex));  // Acceso a la memoria
     }
 
-    // Operador de asignación entre MPointers
+    // Operador de asignación entre MPointers (no reduce referencias automáticamente)
     MPointer<T>& operator=(const MPointer<T>& other) {
         if (this != &other) {
-            if (!isNullPtr) {
-                MPointerGC::getInstance().removeReference(memIndex);  // Liberar referencia actual
-            }
             memIndex = other.memIndex;
             isNullPtr = other.isNullPtr;
-            if (!isNullPtr) {
-                MPointerGC::getInstance().addReference(memIndex);  // Aumentar referencia en el nuevo
-            }
+            std::cout << "[MPointer] Asignado MPointer con índice " << memIndex << std::endl;
         }
-        std::cout << "[MPointer] Asignado MPointer con índice " << memIndex << std::endl;
         return *this;
     }
-
 
     // Verificar si es un puntero nulo
     bool isNull() const {
         return isNullPtr;
+    }
+
+    // Método para obtener el índice (por si el usuario necesita usar removeReference)
+    int getIndex() const {
+        return memIndex;
     }
 };
 #endif

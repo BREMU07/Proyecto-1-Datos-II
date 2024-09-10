@@ -1,28 +1,31 @@
 #include "DoublyLinkedList.h"
 
 int main() {
-    try {
-        DoublyLinkedList<int> list;
+    DoublyLinkedList<int> list;
 
-        list.append(4);
-        list.append(2);
-        list.append(3);
-        list.append(1);
-        
-        //int size = list.getSize();
-        //std::cout << "Tamaño de la lista: " << size << std::endl;
-        std::cout << "Lista antes de ordenar: ";
-        list.printList();
+    // Agregar nodos a la lista
+    list.append(30);
+    list.append(10);
+    list.append(20);
+    list.append(3);
+    list.append(8);
+    list.append(67);
+    list.append(18);
+    list.append(90);
 
-        //list.bubbleSort();
+    // Imprimir la lista
+    std::cout << "Lista: ";
+    list.printList();
 
-        std::cout << "Lista después de ordenar: ";
-        list.printList();
-        
-    } catch (const std::exception &e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-        return 1;
-    }
+     
+    list.bubbleSort();
+
+    std::cout << "Lista ordenada ";
+    list.printList();
+
+
+    // El usuario debe reducir manualmente las referencias cuando ya no necesite los nodos
+    //list.removeReferences();  // Eliminar las referencias manualmente para liberar la memoria
 
     return 0;
 }
