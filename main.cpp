@@ -1,5 +1,7 @@
 #include "DoublyLinkedList.h"
 
+using namespace std;
+
 int main() {
     DoublyLinkedList<int> list;
 
@@ -14,13 +16,13 @@ int main() {
     list.append(90);
 
     // Imprimir la lista
-    std::cout << "Lista: ";
+    cout << "Lista: " << endl;
     list.printList();
 
      
-    list.bubbleSort();
+    list.insertionSort();
 
-    std::cout << "Lista ordenada ";
+    cout << "Lista ordenada " << endl;
     list.printList();
 
 

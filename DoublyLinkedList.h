@@ -2,114 +2,161 @@
 #define DOUBLY_LINKED_LIST_H
 
 #include <iostream>
+#include <stack>
 #include "MPointer.h"
+
+using namespace std;
 
 template<typename T>
 class Node {
 public:
-    MPointer<T> data;  // Dato almacenado en el nodo
-    MPointer<Node<T>> next;  // Puntero al siguiente nodo
-    MPointer<Node<T>> prev;  // Puntero al nodo anterior
+    MPointer<T> data;
+    MPointer<Node<T>> next;
+    MPointer<Node<T>> prev;
 
-    // Constructor del nodo
     Node(T val) : data(MPointer<T>::New()), next(MPointer<Node<T>>()), prev(MPointer<Node<T>>()) {
-        *data = val;  // Asignar el valor al puntero de datos
-        std::cout << "[Node] Nodo creado con valor: " << val << std::endl;
+        *data = val;
+        cout << "[Node] Nodo creado con valor: " << val << endl;
     }
 };
 
 template<typename T>
 class DoublyLinkedList {
 private:
-    MPointer<Node<T>> head;  // Puntero al primer nodo
-    MPointer<Node<T>> tail;  // Puntero al último nodo
+    MPointer<Node<T>> head;
+    MPointer<Node<T>> tail;
 
 public:
-    // Constructor de la lista doblemente enlazada
     void append(T value) {
-        // Crear un nuevo nodo
         MPointer<Node<T>> newNode = MPointer<Node<T>>::New();
-        *newNode = Node<T>(value);  // Asignar el valor al nodo
+        *newNode = Node<T>(value);
 
-        std::cout << "[DoublyLinkedList] Nodo creado con valor: " << value << std::endl;
-
-        // Si la lista está vacía
         if (head.isNull()) {
             head = newNode;
             tail = newNode;
-            std::cout << "[DoublyLinkedList] Este es el primer nodo. Head y Tail apuntan al nodo con valor: " << value << std::endl;
         } else {
-            // Enlazar el nuevo nodo al final
-            (*tail).next = newNode;  // Asignar nuevo nodo como el siguiente del tail actual
-            (*newNode).prev = tail;  // Asignar tail actual como anterior del nuevo nodo
-            tail = newNode;          // Actualizar tail
-
-            std::cout << "[DoublyLinkedList] Nodo agregado al final. Nuevo Tail con valor: " << value << std::endl;
+            (*tail).next = newNode;
+            (*newNode).prev = tail;
+            tail = newNode;
         }
     }
-    // Método para imprimir los valores de la lista
+
     void printList() {
         MPointer<Node<T>> temp = head;
-        // Depuración para verificar si el head es nulo
         if (temp.isNull()) {
-            std::cout << "[DoublyLinkedList] El puntero head es nulo, la lista está vacía." << std::endl;
             return;
         }
-        std::cout << "[DoublyLinkedList] Recorriendo la lista desde head." << std::endl;
-        // Recorremos los nodos y añadimos mensajes de depuración
         while (!temp.isNull()) {
-            std::cout << "[DoublyLinkedList] Nodo con valor: " << *(*temp).data << std::endl;  // Desreferenciar el valor del nodo
-            temp = (*temp).next;  // Ir al siguiente nodo
-        // Verificar si el siguiente puntero es nulo
+            cout << *(*temp).data << endl;
+            temp = (*temp).next;
             if (temp.isNull()) {
-                std::cout << "[DoublyLinkedList] No hay más nodos en la lista." << std::endl;
             }
         }
-        std::cout << std::endl;
+        
+        cout << endl;
     }
-    // Método para reducir manualmente las referencias de todos los nodos de la lista
+
     void removeReferences() {
         MPointer<Node<T>> temp = head;
         while (!temp.isNull()) {
-            int index = temp.getIndex();  // Obtener el índice del nodo actual
-            std::cout << index << std::endl;
-            MPointerGC::getInstance().removeReference(index);  // Eliminar referencia al nodo actual
-            temp = (*temp).next;  // Ir al siguiente nodo
+            int index = temp.getIndex();
+            cout << index << endl;
+            MPointerGC::getInstance().removeReference(index);
+            temp = (*temp).next;
         }
     }
 
     void bubbleSort() {
-        // Si la lista está vacía o tiene solo un elemento, no es necesario ordenar
         if (head.isNull() || (*head).next.isNull()) {
-            std::cout << "[BubbleSort] La lista está vacía o tiene solo un nodo. No se necesita ordenación." << std::endl;
+            cout << "La lista está vacía o solo tiene un nodo. No se necesita ordenar." << endl;
             return;
         }
 
-        bool swapped;   
+        bool swapped;
         do {
             swapped = false;
             MPointer<Node<T>> current = head;
-
-            // Iterar por la lista mientras existan más nodos
             while (!(*current).next.isNull()) {
                 MPointer<Node<T>> nextNode = (*current).next;
-
-                // Comparar los valores de los nodos actuales y siguientes
                 if (*(*current).data > *(*nextNode).data) {
-                    // Intercambiar los valores de los datos entre los nodos
                     T temp = *(*current).data;
                     *(*current).data = *(*nextNode).data;
                     *(*nextNode).data = temp;
-
                     swapped = true;
                 }
-
-                // Avanzar al siguiente nodo
                 current = (*current).next;
             }
 
-        } while (swapped);  // Repetir hasta que no haya más intercambios
+        } while (swapped);
     }
 
+    MPointer<Node<T>> partition(MPointer<Node<T>> low, MPointer<Node<T>> high) {
+        T pivotValue = *(*high).data;
+        MPointer<Node<T>> i = (*low).prev;
+
+        for (MPointer<Node<T>> j = low; j.getIndex() != high.getIndex(); j = (*j).next) {
+            if (*(*j).data < pivotValue) {
+                i = (i.isNull()) ? low : (*i).next;
+                T temp = *(*i).data;
+                *(*i).data = *(*j).data;
+                *(*j).data = temp;
+            }
+        }
+
+        i = (i.isNull()) ? low : (*i).next;
+        T temp = *(*i).data;
+        *(*i).data = *(*high).data;
+        *(*high).data = temp;
+
+        return i;
+    }
+
+    void insertionSort() {
+        if (head.isNull() || (*head).next.isNull()) {
+            return;
+        }
+
+        MPointer<Node<T>> current = (*head).next;
+
+        while (!current.isNull()) {
+            T currentValue = *(*current).data;
+            MPointer<Node<T>> previous = (*current).prev;
+
+            while (!previous.isNull() && *(*previous).data > currentValue) {
+                *(*(*previous).next).data = *(*previous).data;
+                previous = (*previous).prev;
+            }
+
+            if (previous.isNull()) {
+                *(*head).data = currentValue;
+            } else {
+                *(*(*previous).next).data = currentValue;
+            }
+
+            current = (*current).next;
+        }
+    }
+
+    void quickSort() {
+        if (head.isNull() || (*head).next.isNull()) return;
+
+        stack<pair<MPointer<Node<T>>, MPointer<Node<T>>>> stack;
+        stack.push({head, tail});
+
+        while (!stack.empty()) {
+            auto [low, high] = stack.top();
+            stack.pop();
+
+            MPointer<Node<T>> pivot = partition(low, high);
+
+            if (pivot.getIndex() != low.getIndex() && (*pivot).prev.getIndex() != low.getIndex()) {
+                stack.push({low, (*pivot).prev});
+            }
+
+            if (pivot.getIndex() != high.getIndex() && (*pivot).next.getIndex() != high.getIndex()) {
+                stack.push({(*pivot).next, high});
+            }
+        }
+    }
 };
 #endif
