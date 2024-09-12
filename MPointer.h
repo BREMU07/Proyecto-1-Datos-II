@@ -6,6 +6,9 @@
 #include <unordered_map>
 #include <stdexcept>
 #include <queue>
+#include <thread>
+#include <atomic>
+#include <chrono>
 
 using namespace std;
 
@@ -14,13 +17,52 @@ private:
     vector<void*> memoryPool;
     unordered_map<int, int> referenceCounts;
     int currentIndex;
+    atomic<bool> running;            // Para controlar el hilo
+    int interval;                    // Intervalo de tiempo en segundos
+    thread gcThread;                 // Hilo para el recolector de basura
 
-    MPointerGC() : currentIndex(0) {}
+    MPointerGC() : currentIndex(0), running(false), interval(5) {}
+
+    void gcRunner() {
+        while (running) {
+            this_thread::sleep_for(chrono::seconds(interval));
+            cout << "[MPointerGC] Ejecutando ciclo de recolección..." << endl;
+        }
+    }
 
 public:
     static MPointerGC& getInstance() {
         static MPointerGC instance;
         return instance;
+    }
+
+    // Iniciar el hilo de GC con un intervalo de n segundos
+    void startGC(int n) {
+        if (!running) {
+            interval = n;
+            running = true;
+            gcThread = thread(&MPointerGC::gcRunner, this);
+            cout << "[MPointerGC] Gestor de memoria iniciado con intervalo de " << n << " segundos." << endl;
+        }
+    }
+
+    // Verificar si el GC está corriendo
+    bool isRunning() const {
+        return running;
+    }
+
+    void stopGC() {
+        if (running) {
+            running = false;
+            if (gcThread.joinable()) {
+                gcThread.join();
+            }
+            cout << "[MPointerGC] Gestor de memoria detenido." << endl;
+        }
+    }
+
+    ~MPointerGC() {
+        stopGC();
     }
 
     int allocate(size_t size) {
@@ -59,7 +101,7 @@ public:
             throw runtime_error("Error: Invalid attempt to reduce reference count at index " + to_string(index));
         }
     }
-
+    
     void* getMemory(int index) {
         if (index >= memoryPool.size() || memoryPool[index] == nullptr) {
             throw runtime_error("[MPointerGC] Invalid memory access at index " + to_string(index));
@@ -78,7 +120,11 @@ private:
 public:
     MPointer() : memIndex(-1) {}
 
+    // Crear un nuevo MPointer con memoria asignada
     static MPointer<T> New() {
+        if (!MPointerGC::getInstance().isRunning()) {
+            throw runtime_error("MPointerGC must be started before using MPointer.");
+        }
         int index = MPointerGC::getInstance().allocate(sizeof(T));
         return MPointer<T>(index);
     }
@@ -92,7 +138,11 @@ public:
 
     MPointer<T>& operator=(const MPointer<T>& other) {
         if (this != &other) {
-            memIndex = other.memIndex;
+            if (!other.isNull()) {
+                memIndex = other.memIndex;
+            } else {
+                memIndex = -1;
+            }
         }
         return *this;
     }

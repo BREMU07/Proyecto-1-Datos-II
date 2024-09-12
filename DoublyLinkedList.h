@@ -52,7 +52,6 @@ public:
             if (temp.isNull()) {
             }
         }
-        
         cout << endl;
     }
 

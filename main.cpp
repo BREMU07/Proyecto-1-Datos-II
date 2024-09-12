@@ -3,6 +3,8 @@
 using namespace std;
 
 int main() {
+    MPointerGC::getInstance().startGC(1);
+
     DoublyLinkedList<int> list;
 
     // Agregar nodos a la lista
@@ -20,14 +22,14 @@ int main() {
     list.printList();
 
      
-    list.insertionSort();
+    list.bubbleSort();
 
     cout << "Lista ordenada " << endl;
     list.printList();
 
 
     // El usuario debe reducir manualmente las referencias cuando ya no necesite los nodos
-    //list.removeReferences();  // Eliminar las referencias manualmente para liberar la memoria
+    list.removeReferences();  // Eliminar las referencias manualmente para liberar la memoria
 
     return 0;
 }
