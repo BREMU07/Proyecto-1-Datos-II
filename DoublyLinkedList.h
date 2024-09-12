@@ -49,8 +49,6 @@ public:
         while (!temp.isNull()) {
             cout << *(*temp).data << endl;
             temp = (*temp).next;
-            if (temp.isNull()) {
-            }
         }
         cout << endl;
     }
@@ -59,9 +57,9 @@ public:
         MPointer<Node<T>> temp = head;
         while (!temp.isNull()) {
             int index = temp.getIndex();
-            cout << index << endl;
+            MPointer<Node<T>> nextNode = (*temp).next; // Save the next node before deallocating
             MPointerGC::getInstance().removeReference(index);
-            temp = (*temp).next;
+            temp = nextNode; // Move to the next node
         }
     }
 

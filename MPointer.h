@@ -73,6 +73,7 @@ public:
         memoryPool.push_back(newMem);
         referenceCounts[index] = 1;
 
+        cout << "[MPointerGC] Memory allocated at index " << index << endl;
         return index;
     }
 
@@ -80,6 +81,7 @@ public:
         if (referenceCounts[index] == 0 && memoryPool[index] != nullptr) {
             free(memoryPool[index]);
             memoryPool[index] = nullptr;
+            cout << "[MPointerGC] Memory deallocated at index " << index << endl;
         } else {
             return;
         }
@@ -87,13 +89,15 @@ public:
 
     void addReference(int index) {
         referenceCounts[index]++;
+        cout << "[MPointerGC] Reference added at index " << index << ", count: " << referenceCounts[index] << endl;
     }
-
+    
     void removeReference(int index) {
         if (index == -1) return;
 
         if (referenceCounts.find(index) != referenceCounts.end() && referenceCounts[index] > 0) {
             referenceCounts[index]--;
+            cout << "[MPointerGC] Reference removed at index " << index << ", count: " << referenceCounts[index] << endl;
             if (referenceCounts[index] == 0) {
                 deallocate(index);
             }

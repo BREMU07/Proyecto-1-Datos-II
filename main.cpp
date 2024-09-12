@@ -5,31 +5,64 @@ using namespace std;
 int main() {
     MPointerGC::getInstance().startGC(1);
 
-    DoublyLinkedList<int> list;
+    DoublyLinkedList<int> listBubble;
+    DoublyLinkedList<int> listQuick;
+    DoublyLinkedList<int> listInsertion;
 
     // Agregar nodos a la lista
-    list.append(30);
-    list.append(10);
-    list.append(20);
-    list.append(3);
-    list.append(8);
-    list.append(67);
-    list.append(18);
-    list.append(90);
+    listBubble.append(30);
+    listBubble.append(10);
+    listBubble.append(20);
+    listBubble.append(3);
+    listBubble.append(8);
+    listBubble.append(67);
+    listBubble.append(18);
+    listBubble.append(90);
+
+    listQuick.append(10);
+    listQuick.append(6);
+    listQuick.append(89);
+    listQuick.append(500);
+    listQuick.append(1);
+    listQuick.append(4);
+    listQuick.append(25);
+    listQuick.append(67);
+
+    listInsertion.append(56);
+    listInsertion.append(56);
+    listInsertion.append(1);
+    listInsertion.append(89);
+    listInsertion.append(34);
+    listInsertion.append(7);
+    listInsertion.append(8);
+    listInsertion.append(2);
 
     // Imprimir la lista
-    cout << "Lista: " << endl;
-    list.printList();
+    cout << "Lista Bubble: " << endl;
+    listBubble.printList();
 
-     
-    list.bubbleSort();
+    cout <<"Lista Quick: " << endl;
+    listQuick.printList();
 
-    cout << "Lista ordenada " << endl;
-    list.printList();
+    cout << "Lista Insertion: " << endl;
+    listInsertion.printList();
 
+    listQuick.quickSort();
+    listBubble.bubbleSort();
+    listInsertion.insertionSort();
 
-    // El usuario debe reducir manualmente las referencias cuando ya no necesite los nodos
-    list.removeReferences();  // Eliminar las referencias manualmente para liberar la memoria
+    cout << "Lista Bubble ordenada " << endl;
+    listBubble.printList();
+
+    cout << "Lista Quick ordenada " << endl;
+    listQuick.printList();
+
+    cout << "Lista Insertion ordenada " << endl;
+    listInsertion.printList();
+
+    listBubble.removeReferences();  // Eliminar las referencias manualmente para liberar la memoria
+    listQuick.removeReferences();
+    listInsertion.removeReferences();
 
     return 0;
 }
