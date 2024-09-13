@@ -57,9 +57,9 @@ public:
         MPointer<Node<T>> temp = head;
         while (!temp.isNull()) {
             int index = temp.getIndex();
-            MPointer<Node<T>> nextNode = (*temp).next; // Save the next node before deallocating
+            MPointer<Node<T>> nextNode = (*temp).next; // Guardar el siguiente nodo antes de desasignar
             MPointerGC::getInstance().removeReference(index);
-            temp = nextNode; // Move to the next node
+            temp = nextNode; // Mover al siguiente nodo
         }
     }
 

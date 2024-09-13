@@ -73,7 +73,7 @@ public:
         memoryPool.push_back(newMem);
         referenceCounts[index] = 1;
 
-        cout << "[MPointerGC] Memory allocated at index " << index << endl;
+        cout << "[MPointerGC] Memoria asignada en el índice " << index << endl;
         return index;
     }
 
@@ -81,7 +81,7 @@ public:
         if (referenceCounts[index] == 0 && memoryPool[index] != nullptr) {
             free(memoryPool[index]);
             memoryPool[index] = nullptr;
-            cout << "[MPointerGC] Memory deallocated at index " << index << endl;
+            cout << "[MPointerGC] Memoria liberada en el índice " << index << endl;
         } else {
             return;
         }
@@ -89,7 +89,7 @@ public:
 
     void addReference(int index) {
         referenceCounts[index]++;
-        cout << "[MPointerGC] Reference added at index " << index << ", count: " << referenceCounts[index] << endl;
+        cout << "[MPointerGC] Referencia agregada en el índice " << index << ", contador: " << referenceCounts[index] << endl;
     }
     
     void removeReference(int index) {
@@ -97,18 +97,18 @@ public:
 
         if (referenceCounts.find(index) != referenceCounts.end() && referenceCounts[index] > 0) {
             referenceCounts[index]--;
-            cout << "[MPointerGC] Reference removed at index " << index << ", count: " << referenceCounts[index] << endl;
+            cout << "[MPointerGC] Referencia removida en el índice " << index << ", contador: " << referenceCounts[index] << endl;
             if (referenceCounts[index] == 0) {
                 deallocate(index);
             }
         } else {
-            throw runtime_error("Error: Invalid attempt to reduce reference count at index " + to_string(index));
+            throw runtime_error("Error: Intento inválido de reducir el contador de referencias en el índice " + to_string(index));
         }
     }
     
     void* getMemory(int index) {
         if (index >= memoryPool.size() || memoryPool[index] == nullptr) {
-            throw runtime_error("[MPointerGC] Invalid memory access at index " + to_string(index));
+            throw runtime_error("[MPointerGC] Acceso inválido a la memoria en el índice " + to_string(index));
         }
         return memoryPool[index];
     }
@@ -127,7 +127,7 @@ public:
     // Crear un nuevo MPointer con memoria asignada
     static MPointer<T> New() {
         if (!MPointerGC::getInstance().isRunning()) {
-            throw runtime_error("MPointerGC must be started before using MPointer.");
+            throw runtime_error("MPointerGC debe iniciarse antes de usar MPointer.");
         }
         int index = MPointerGC::getInstance().allocate(sizeof(T));
         return MPointer<T>(index);
@@ -136,7 +136,7 @@ public:
     ~MPointer() {}
 
     T& operator*() {
-        if (memIndex == -1) throw runtime_error("Dereferencing null pointer");
+        if (memIndex == -1) throw runtime_error("Dereferenciando un puntero nulo");
         return *(T*)(MPointerGC::getInstance().getMemory(memIndex));
     }
 
